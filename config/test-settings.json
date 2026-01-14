@@ -1,0 +1,39 @@
+{
+  "interfaces": {},
+  "ssl": false,
+  "pipedProviders": [
+    {
+      "id": "nmea-tcp-test",
+      "pipeElements": [
+        {
+          "type": "providers/tcp",
+          "options": {
+            "host": "0.0.0.0",
+            "port": 10110
+          }
+        },
+        {
+          "type": "providers/nmea0183-signalk"
+        }
+      ],
+      "enabled": true
+    },
+    {
+      "id": "nmea-udp-test",
+      "pipeElements": [
+        {
+          "type": "providers/udp",
+          "options": {
+            "port": 10111
+          }
+        },
+        {
+          "type": "providers/nmea0183-signalk"
+        }
+      ],
+      "enabled": true
+    }
+  ],
+  "mdns": false,
+  "enablePluginLogging": true
+}

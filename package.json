@@ -1,0 +1,48 @@
+{
+  "name": "signalk-server-release-testting",
+  "version": "1.0.0",
+  "description": "Comprehensive release validation suite for SignalK Server Docker images",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --config jest.config.js --runInBand",
+    "test:release": "jest --config jest.config.js --runInBand --testTimeout=300000",
+    "test:lifecycle": "jest tests/01-server-lifecycle.test.js --runInBand",
+    "test:plugins": "jest tests/02-plugin-loading.test.js --runInBand",
+    "test:nmea-tcp": "jest tests/03-nmea0183-tcp.test.js --runInBand",
+    "test:nmea-udp": "jest tests/04-nmea0183-udp.test.js --runInBand",
+    "test:nmea2000": "jest tests/05-nmea2000-input.test.js --runInBand",
+    "test:scenarios": "jest tests/06-realworld-scenarios.test.js --runInBand",
+    "test:ui-dashboard": "jest tests/07-admin-dashboard.test.js --runInBand",
+    "test:ui-databrowser": "jest tests/08-admin-databrowser.test.js --runInBand",
+    "test:ui-plugins": "jest tests/09-admin-plugins.test.js --runInBand",
+    "test:ui-security": "jest tests/10-admin-security.test.js --runInBand",
+    "test:stress": "jest tests/11-stress-test.test.js --runInBand --testTimeout=600000",
+    "report:generate": "node scripts/generate-report.js",
+    "fixtures:generate": "node scripts/generate-fixtures.js",
+    "lint": "eslint lib/ tests/",
+    "prepare": "npx playwright install chromium"
+  },
+  "keywords": [
+    "signalk",
+    "marine",
+    "nmea",
+    "docker",
+    "testing",
+    "integration-tests"
+  ],
+  "author": "SignalK Community",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "dockerode": "^4.0.2",
+    "playwright": "^1.40.1",
+    "ws": "^8.14.2",
+    "fs-extra": "^11.2.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "eslint": "^8.56.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

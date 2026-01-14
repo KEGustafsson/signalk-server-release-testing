@@ -1,0 +1,82 @@
+{
+  "name": "Coastal Sailing - Helsinki Harbor to Open Water",
+  "description": "Simulates departure from harbor and sailing to open water with varied conditions",
+  "duration": "30 minutes simulated",
+  "phases": [
+    {
+      "name": "Harbor Departure - Motor",
+      "description": "Slow motor out of harbor",
+      "protocol": "tcp",
+      "delay": 200,
+      "generate": {
+        "type": "navigation",
+        "count": 50,
+        "startLat": 60.15,
+        "startLon": 24.95,
+        "speed": 3,
+        "course": 180
+      },
+      "pauseAfter": 2000
+    },
+    {
+      "name": "Channel Navigation",
+      "description": "Navigate through channel markers",
+      "protocol": "tcp",
+      "delay": 150,
+      "generate": {
+        "type": "navigation",
+        "count": 80,
+        "speed": 4,
+        "course": 200
+      },
+      "pauseAfter": 2000
+    },
+    {
+      "name": "Raise Sails",
+      "description": "Transition from motor to sail",
+      "protocol": "tcp",
+      "delay": 300,
+      "sentences": [
+        "$GPRMC,100500,A,6012.000,N,02450.000,E,2.0,210.0,010125,0.0,E,A*1A",
+        "$WIMWV,045.0,R,12.0,M,A*1C",
+        "$GPRMC,100530,A,6011.950,N,02449.950,E,3.0,215.0,010125,0.0,E,A*1B",
+        "$WIMWV,048.0,R,14.0,M,A*1F"
+      ],
+      "pauseAfter": 3000
+    },
+    {
+      "name": "Open Water Sailing",
+      "description": "Sailing in open water with steady wind",
+      "protocol": "tcp",
+      "delay": 100,
+      "generate": {
+        "type": "navigation",
+        "count": 150,
+        "speed": 6,
+        "course": 220
+      },
+      "pauseAfter": 2000
+    },
+    {
+      "name": "Environment Data",
+      "description": "Depth, wind, and temperature readings",
+      "protocol": "tcp",
+      "delay": 150,
+      "generate": {
+        "type": "environment",
+        "count": 100,
+        "depth": 25,
+        "windSpeed": 14,
+        "windAngle": 45
+      },
+      "pauseAfter": 1000
+    },
+    {
+      "name": "AIS Traffic",
+      "description": "Nearby vessel traffic",
+      "protocol": "tcp",
+      "delay": 200,
+      "file": "ais-traffic.log"
+    }
+  ]
+}
