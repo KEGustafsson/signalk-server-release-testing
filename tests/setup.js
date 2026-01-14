@@ -6,6 +6,7 @@
 
 const { LogMonitor } = require('../lib/log-monitor');
 const { ContainerManager } = require('../lib/container-manager');
+const Docker = require('dockerode');
 
 // Increase default timeout for Docker operations
 jest.setTimeout(120000);
@@ -17,14 +18,44 @@ global.testState = {
   connectionInfo: null,
 };
 
+// Pull Docker image once before all tests
+const pullImage = async (imageName) => {
+  const docker = new Docker();
+  console.log(`Pulling image: ${imageName}...`);
+
+  return new Promise((resolve, reject) => {
+    docker.pull(imageName, (err, stream) => {
+      if (err) {
+        // Image might already exist locally
+        console.log(`Image pull skipped: ${err.message}`);
+        return resolve();
+      }
+
+      docker.modem.followProgress(stream, (err, output) => {
+        if (err) {
+          console.log(`Image pull warning: ${err.message}`);
+          return resolve();
+        }
+        console.log(`Image ready: ${imageName}`);
+        resolve();
+      });
+    });
+  });
+};
+
 // Setup before all tests
 beforeAll(async () => {
+  const image = process.env.SIGNALK_IMAGE || 'signalk/signalk-server:latest';
+
   console.log('='.repeat(60));
   console.log('SignalK Release Validation Suite');
-  console.log(`Image: ${process.env.SIGNALK_IMAGE || 'signalk/signalk-server:latest'}`);
+  console.log(`Image: ${image}`);
   console.log(`Date: ${new Date().toISOString()}`);
   console.log('='.repeat(60));
-});
+
+  // Pull image once at the start
+  await pullImage(image);
+}, 300000); // 5 minute timeout for image pull
 
 // Cleanup after all tests
 afterAll(async () => {
