@@ -28,8 +28,8 @@ describe('NMEA 0183 TCP Input', () => {
     tcpPort = info.tcpPort;
     feeder = new NmeaFeeder({ tcpPort });
 
-    // Wait for TCP listener to be ready
-    await sleep(3000);
+    // Container manager now waits for TCP port, add small buffer for provider init
+    await sleep(2000);
   }, 120000);
 
   afterAll(async () => {
@@ -79,26 +79,54 @@ describe('NMEA 0183 TCP Input', () => {
   });
 
   describe('Navigation Sentences', () => {
-    test('processes RMC sentence correctly', async () => {
+    test('processes RMC sentence correctly and data appears in SignalK', async () => {
       logMonitor.setPhase('tcp-rmc');
+
+      // Debug: Check what providers are configured
+      const providersRes = await fetch(`${baseUrl}/skServer/providers`);
+      if (providersRes.ok) {
+        const providers = await providersRes.json();
+        console.log(`Configured providers: ${JSON.stringify(providers, null, 2)}`);
+      } else {
+        console.log(`Providers endpoint: ${providersRes.status}`);
+      }
 
       // Use real RMC from test data file
       const rmcSentences = NmeaFixtures.getSentencesByType('RMC');
       const rmcSentence = rmcSentences[0] || '$GNRMC,165544.00,A,6016.83272,N,02217.19556,E,0.002,,150126,9.20,E,D,V*40';
-      await feeder.sendTcp(rmcSentence);
+      console.log(`Sending RMC: ${rmcSentence}`);
+      const sendResult = await feeder.sendTcp(rmcSentence);
+      expect(sendResult.sent).toBe(1);
+      expect(sendResult.errors).toHaveLength(0);
 
-      await sleep(1000);
+      // Wait for data to be processed
+      await sleep(2000);
 
-      // Verify data appears in SignalK
-      const res = await fetch(`${baseUrl}/signalk/v1/api/vessels/self/navigation/position`);
-
-      if (res.ok) {
-        const data = await res.json();
-        expect(data.value).toBeDefined();
-        // Position from test file: 6016.83272,N = 60.28054...
-        expect(data.value.latitude).toBeCloseTo(60.28, 1);
-        expect(data.value.longitude).toBeCloseTo(22.28, 1);
+      // Debug: Check entire vessels API
+      const vesselsRes = await fetch(`${baseUrl}/signalk/v1/api/vessels/self`);
+      if (vesselsRes.ok) {
+        const vessels = await vesselsRes.json();
+        console.log(`Vessels self data: ${JSON.stringify(vessels, null, 2).substring(0, 500)}`);
+      } else {
+        console.log(`Vessels API: ${vesselsRes.status}`);
       }
+
+      // Verify data MUST appear in SignalK
+      const res = await fetch(`${baseUrl}/signalk/v1/api/vessels/self/navigation/position`);
+      if (!res.ok) {
+        console.log(`Position API returned: ${res.status}`);
+        // Get container logs for debugging
+        const logs = await manager.getLogs(100);
+        console.log(`Container logs:\n${logs}`);
+      }
+      expect(res.ok).toBe(true);
+
+      const data = await res.json();
+      expect(data.value).toBeDefined();
+      console.log(`Position received: lat=${data.value.latitude}, lon=${data.value.longitude}`);
+      // Position from test file: 6016.83272,N = 60.28054...
+      expect(data.value.latitude).toBeCloseTo(60.28, 1);
+      expect(data.value.longitude).toBeCloseTo(22.28, 1);
 
       expect(logMonitor.getPhaseErrors('tcp-rmc')).toHaveLength(0);
     });
