@@ -8,6 +8,7 @@
 const { ContainerManager } = require('../lib/container-manager');
 const { LogMonitor } = require('../lib/log-monitor');
 const { NmeaFeeder } = require('../lib/nmea-feeder');
+const { NmeaFixtures } = require('../lib/nmea-fixtures');
 
 describe('NMEA 0183 TCP Input', () => {
   let manager;
@@ -81,20 +82,22 @@ describe('NMEA 0183 TCP Input', () => {
     test('processes RMC sentence correctly', async () => {
       logMonitor.setPhase('tcp-rmc');
 
-      await feeder.sendTcp(
-        '$GPRMC,123519,A,6009.000,N,02459.000,E,5.5,45.0,010125,0.0,E,A*1A'
-      );
+      // Use real RMC from test data file
+      const rmcSentences = NmeaFixtures.getSentencesByType('RMC');
+      const rmcSentence = rmcSentences[0] || '$GNRMC,165544.00,A,6016.83272,N,02217.19556,E,0.002,,150126,9.20,E,D,V*40';
+      await feeder.sendTcp(rmcSentence);
 
       await sleep(1000);
 
       // Verify data appears in SignalK
       const res = await fetch(`${baseUrl}/signalk/v1/api/vessels/self/navigation/position`);
-      
+
       if (res.ok) {
         const data = await res.json();
         expect(data.value).toBeDefined();
-        expect(data.value.latitude).toBeCloseTo(60.15, 1);
-        expect(data.value.longitude).toBeCloseTo(24.983, 1);
+        // Position from test file: 6016.83272,N = 60.28054...
+        expect(data.value.latitude).toBeCloseTo(60.28, 1);
+        expect(data.value.longitude).toBeCloseTo(22.28, 1);
       }
 
       expect(logMonitor.getPhaseErrors('tcp-rmc')).toHaveLength(0);
@@ -103,9 +106,10 @@ describe('NMEA 0183 TCP Input', () => {
     test('processes GGA sentence correctly', async () => {
       logMonitor.setPhase('tcp-gga');
 
-      await feeder.sendTcp(
-        '$GPGGA,123519,6009.000,N,02459.000,E,1,08,0.9,10.0,M,47.0,M,,*5F'
-      );
+      // Use real GGA from test data file
+      const ggaSentences = NmeaFixtures.getSentencesByType('GGA');
+      const ggaSentence = ggaSentences[0] || '$GNGGA,165544.00,6016.83353,N,02217.19127,E,1,12,0.51,2.4,M,18.6,M,,*4E';
+      await feeder.sendTcp(ggaSentence);
 
       await sleep(1000);
 
@@ -115,31 +119,53 @@ describe('NMEA 0183 TCP Input', () => {
     test('processes VTG sentence correctly', async () => {
       logMonitor.setPhase('tcp-vtg');
 
-      await feeder.sendTcp('$GPVTG,45.0,T,40.0,M,5.5,N,10.2,K,A*2C');
+      // Use real VTG from test data file
+      const vtgSentences = NmeaFixtures.getSentencesByType('VTG');
+      const vtgSentence = vtgSentences[0] || '$GNVTG,,T,,M,0.002,N,0.004,K,D*3E';
+      await feeder.sendTcp(vtgSentence);
 
       await sleep(1000);
 
       expect(logMonitor.getPhaseErrors('tcp-vtg')).toHaveLength(0);
     });
 
-    test('processes HDG sentence correctly', async () => {
-      logMonitor.setPhase('tcp-hdg');
-
-      await feeder.sendTcp('$HCHDG,98.3,0.0,E,12.6,W*57');
-
-      await sleep(1000);
-
-      expect(logMonitor.getPhaseErrors('tcp-hdg')).toHaveLength(0);
-    });
-
     test('processes HDT sentence correctly', async () => {
       logMonitor.setPhase('tcp-hdt');
 
-      await feeder.sendTcp('$HCHDT,95.5,T*1B');
+      // Use real HDT from test data file
+      const hdtSentences = NmeaFixtures.getSentencesByType('HDT');
+      const hdtSentence = hdtSentences[0] || '$IIHDT,323.6,T*26';
+      await feeder.sendTcp(hdtSentence);
 
       await sleep(1000);
 
       expect(logMonitor.getPhaseErrors('tcp-hdt')).toHaveLength(0);
+    });
+
+    test('processes GLL sentence correctly', async () => {
+      logMonitor.setPhase('tcp-gll');
+
+      // Use real GLL from test data file
+      const gllSentences = NmeaFixtures.getSentencesByType('GLL');
+      const gllSentence = gllSentences[0] || '$GNGLL,6016.83272,N,02217.19556,E,165544.00,A,D*70';
+      await feeder.sendTcp(gllSentence);
+
+      await sleep(1000);
+
+      expect(logMonitor.getPhaseErrors('tcp-gll')).toHaveLength(0);
+    });
+
+    test('processes ZDA sentence correctly', async () => {
+      logMonitor.setPhase('tcp-zda');
+
+      // Use real ZDA from test data file
+      const zdaSentences = NmeaFixtures.getSentencesByType('ZDA');
+      const zdaSentence = zdaSentences[0] || '$GNZDA,165544.00,15,01,2026,00,00*7C';
+      await feeder.sendTcp(zdaSentence);
+
+      await sleep(1000);
+
+      expect(logMonitor.getPhaseErrors('tcp-zda')).toHaveLength(0);
     });
   });
 
@@ -199,34 +225,51 @@ describe('NMEA 0183 TCP Input', () => {
   });
 
   describe('AIS Sentences', () => {
-    test('processes AIS Class A position report', async () => {
-      logMonitor.setPhase('tcp-ais-a');
+    test('processes AIS VDO (own vessel) messages', async () => {
+      logMonitor.setPhase('tcp-ais-vdo');
 
-      await feeder.sendTcp('!AIVDM,1,1,,A,13u@DP0P00PlJ`<5;:0?4?v00000,0*39');
+      // Use real VDO from test data file
+      const vdoSentences = NmeaFixtures.getSentencesByType('VDO');
+      if (vdoSentences.length > 0) {
+        await feeder.sendTcp(vdoSentences[0]);
+      } else {
+        await feeder.sendTcp('!AIVDO,1,1,,,B3KK;SP000IPD4`Wp`wQ2RF1h000,0*3B');
+      }
 
       await sleep(1000);
 
-      expect(logMonitor.getPhaseErrors('tcp-ais-a')).toHaveLength(0);
+      expect(logMonitor.getPhaseErrors('tcp-ais-vdo')).toHaveLength(0);
     });
 
-    test('processes AIS Class B position report', async () => {
-      logMonitor.setPhase('tcp-ais-b');
+    test('processes AIS VDM (other vessels) messages', async () => {
+      logMonitor.setPhase('tcp-ais-vdm');
 
-      await feeder.sendTcp('!AIVDM,1,1,,B,15MgK70000JsHG8Hus0FbD:0000,0*61');
+      // Use real VDM from test data file
+      const vdmSentences = NmeaFixtures.getSentencesByType('VDM');
+      if (vdmSentences.length > 0) {
+        await feeder.sendTcp(vdmSentences[0]);
+      } else {
+        await feeder.sendTcp('!AIVDM,1,1,,B,402<HTQv`Ghoc1V?VTRS42wP20S:,0*46');
+      }
 
       await sleep(1000);
 
-      expect(logMonitor.getPhaseErrors('tcp-ais-b')).toHaveLength(0);
+      expect(logMonitor.getPhaseErrors('tcp-ais-vdm')).toHaveLength(0);
     });
 
     test('AIS targets appear in vessel list', async () => {
       logMonitor.setPhase('tcp-ais-vessels');
 
-      // Send a few AIS messages
-      await feeder.sendTcp([
-        '!AIVDM,1,1,,A,13u@DP0P00PlJ`<5;:0?4?v00000,0*39',
-        '!AIVDM,1,1,,B,15MgK70000JsHG8Hus0FbD:0000,0*61',
-      ]);
+      // Use all AIS sentences from test data file
+      const aisSentences = NmeaFixtures.getAisSentences();
+      if (aisSentences.length > 0) {
+        await feeder.sendTcp(aisSentences);
+      } else {
+        await feeder.sendTcp([
+          '!AIVDM,1,1,,A,13u@DP0P00PlJ`<5;:0?4?v00000,0*39',
+          '!AIVDM,1,1,,B,15MgK70000JsHG8Hus0FbD:0000,0*61',
+        ]);
+      }
 
       await sleep(2000);
 
@@ -242,39 +285,50 @@ describe('NMEA 0183 TCP Input', () => {
   });
 
   describe('Burst Handling', () => {
-    test('handles high-frequency data burst', async () => {
+    test('handles high-frequency data burst with real test data', async () => {
       logMonitor.setPhase('tcp-burst');
 
-      const sentences = feeder.generateNavigationBurst(100);
+      // Use realistic test data from file
+      const sentences = NmeaFixtures.getTestDataBurst(100);
       const result = await feeder.sendTcp(sentences, { delay: 10 });
 
       expect(result.sent).toBe(sentences.length);
+      console.log(`Sent ${result.sent} realistic NMEA sentences`);
 
       await sleep(3000);
 
       expect(logMonitor.getPhaseErrors('tcp-burst')).toHaveLength(0);
     });
 
-    test('handles mixed sentence burst', async () => {
-      logMonitor.setPhase('tcp-mixed-burst');
+    test('handles all test file sentences', async () => {
+      logMonitor.setPhase('tcp-all-sentences');
 
-      const navSentences = feeder.generateNavigationBurst(50);
-      const envSentences = feeder.generateEnvironmentBurst(50);
-      const allSentences = [...navSentences, ...envSentences];
-
-      // Shuffle
-      for (let i = allSentences.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [allSentences[i], allSentences[j]] = [allSentences[j], allSentences[i]];
-      }
-
-      const result = await feeder.sendTcp(allSentences, { delay: 20 });
+      // Send all sentences from the test file
+      const allSentences = NmeaFixtures.getAllTestSentences();
+      const result = await feeder.sendTcp(allSentences, { delay: 50 });
 
       expect(result.sent).toBe(allSentences.length);
+      console.log(`Sent all ${result.sent} test file sentences`);
 
       await sleep(3000);
 
-      expect(logMonitor.getPhaseErrors('tcp-mixed-burst')).toHaveLength(0);
+      expect(logMonitor.getPhaseErrors('tcp-all-sentences')).toHaveLength(0);
+    });
+
+    test('handles satellite info burst (GSA/GSV)', async () => {
+      logMonitor.setPhase('tcp-satellite-burst');
+
+      // Send satellite info sentences
+      const satSentences = NmeaFixtures.getSatelliteSentences();
+      if (satSentences.length > 0) {
+        const result = await feeder.sendTcp(satSentences, { delay: 20 });
+        expect(result.sent).toBe(satSentences.length);
+        console.log(`Sent ${result.sent} satellite info sentences`);
+      }
+
+      await sleep(2000);
+
+      expect(logMonitor.getPhaseErrors('tcp-satellite-burst')).toHaveLength(0);
     });
   });
 

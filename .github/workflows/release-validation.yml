@@ -7,65 +7,97 @@ on:
         description: 'Docker image tag to test (e.g., latest, 2.0.0, 2.0.0-beta.1)'
         required: true
         default: 'latest'
-      run_stress_tests:
-        description: 'Include stress tests (adds ~30min)'
-        type: boolean
-        default: false
       run_ui_tests:
         description: 'Include Admin UI tests'
         type: boolean
         default: true
+      run_stress_tests:
+        description: 'Include stress tests (adds ~10min)'
+        type: boolean
+        default: false
 
 env:
   SIGNALK_IMAGE: signalk/signalk-server:${{ github.event.inputs.image_tag }}
   TEST_TIMEOUT: 300000
 
 jobs:
-  validate-image:
-    name: Validate Docker Image
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      image_exists: ${{ steps.check.outputs.exists }}
-    steps:
-      - name: Check image exists
-        id: check
-        run: |
-          if docker pull ${{ env.SIGNALK_IMAGE }}; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            docker inspect ${{ env.SIGNALK_IMAGE }} --format='Image ID: {{.Id}}'
-            docker inspect ${{ env.SIGNALK_IMAGE }} --format='Created: {{.Created}}'
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "::error::Image ${{ env.SIGNALK_IMAGE }} not found"
-            exit 1
-          fi
-
-  test-lifecycle:
-    name: Server Lifecycle Tests
-    needs: validate-image
+  setup:
+    name: Setup Dependencies
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      image_id: ${{ steps.check.outputs.image_id }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
-      - name: Pull SignalK image
-        run: docker pull ${{ env.SIGNALK_IMAGE }}
-      
+
+      - name: Cache node_modules
+        uses: actions/cache/save@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ github.run_id }}
+
+      - name: Pull and cache Docker image
+        id: check
+        run: |
+          if docker pull ${{ env.SIGNALK_IMAGE }}; then
+            IMAGE_ID=$(docker inspect ${{ env.SIGNALK_IMAGE }} --format='{{.Id}}')
+            echo "image_id=$IMAGE_ID" >> $GITHUB_OUTPUT
+            docker inspect ${{ env.SIGNALK_IMAGE }} --format='Created: {{.Created}}'
+            # Save image as tarball for other jobs
+            docker save ${{ env.SIGNALK_IMAGE }} -o signalk-image.tar
+          else
+            echo "::error::Image ${{ env.SIGNALK_IMAGE }} not found"
+            exit 1
+          fi
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: signalk-image.tar
+          retention-days: 1
+
+  test-lifecycle:
+    name: Server Lifecycle Tests
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ github.run_id }}
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i signalk-image.tar
+
       - name: Run lifecycle tests
         run: npm run test:lifecycle
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
-      
+
       - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -75,29 +107,36 @@ jobs:
 
   test-plugins:
     name: Plugin Loading Tests
-    needs: validate-image
+    needs: setup
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Pull SignalK image
-        run: docker pull ${{ env.SIGNALK_IMAGE }}
-      
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ github.run_id }}
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i signalk-image.tar
+
       - name: Run plugin tests
         run: npm run test:plugins
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
-      
+
       - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -107,29 +146,36 @@ jobs:
 
   test-nmea-tcp:
     name: NMEA 0183 TCP Tests
-    needs: validate-image
+    needs: setup
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Pull SignalK image
-        run: docker pull ${{ env.SIGNALK_IMAGE }}
-      
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ github.run_id }}
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i signalk-image.tar
+
       - name: Run NMEA TCP tests
         run: npm run test:nmea-tcp
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
-      
+
       - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -139,29 +185,36 @@ jobs:
 
   test-nmea-udp:
     name: NMEA 0183 UDP Tests
-    needs: validate-image
+    needs: setup
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Pull SignalK image
-        run: docker pull ${{ env.SIGNALK_IMAGE }}
-      
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ github.run_id }}
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i signalk-image.tar
+
       - name: Run NMEA UDP tests
         run: npm run test:nmea-udp
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
-      
+
       - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -171,29 +224,36 @@ jobs:
 
   test-scenarios:
     name: Real-World Scenario Tests
-    needs: [test-lifecycle, test-nmea-tcp]
+    needs: [setup, test-lifecycle, test-nmea-tcp]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Pull SignalK image
-        run: docker pull ${{ env.SIGNALK_IMAGE }}
-      
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ github.run_id }}
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i signalk-image.tar
+
       - name: Run scenario tests
         run: npm run test:scenarios
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
-      
+
       - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -203,28 +263,35 @@ jobs:
 
   test-admin-ui:
     name: Admin UI Tests
-    needs: [test-lifecycle, test-plugins]
+    needs: [setup, test-lifecycle, test-plugins]
     if: ${{ github.event.inputs.run_ui_tests == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ github.run_id }}
+
       - name: Install Playwright browsers
         run: npx playwright install chromium
-      
-      - name: Pull SignalK image
-        run: docker pull ${{ env.SIGNALK_IMAGE }}
-      
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i signalk-image.tar
+
       - name: Run Admin UI tests
         run: |
           npm run test:ui-dashboard
@@ -233,14 +300,14 @@ jobs:
           npm run test:ui-security
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
-      
+
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ui-screenshots
           path: reports/screenshots/
-      
+
       - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -250,30 +317,37 @@ jobs:
 
   test-stress:
     name: Stress Tests
-    needs: [test-scenarios]
+    needs: [setup, test-scenarios]
     if: ${{ github.event.inputs.run_stress_tests == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Pull SignalK image
-        run: docker pull ${{ env.SIGNALK_IMAGE }}
-      
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ github.run_id }}
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i signalk-image.tar
+
       - name: Run stress tests
         run: npm run test:stress
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
-      
+
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -283,26 +357,28 @@ jobs:
 
   generate-report:
     name: Generate Validation Report
-    needs: [test-lifecycle, test-plugins, test-nmea-tcp, test-nmea-udp, test-scenarios]
+    needs: [setup, test-lifecycle, test-plugins, test-nmea-tcp, test-nmea-udp, test-scenarios]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ github.run_id }}
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts/
-      
+
       - name: Generate report
         run: |
           npm run report:generate -- \
@@ -312,17 +388,17 @@ jobs:
             --nmea-tcp="${{ needs.test-nmea-tcp.result }}" \
             --nmea-udp="${{ needs.test-nmea-udp.result }}" \
             --scenarios="${{ needs.test-scenarios.result }}"
-      
+
       - name: Upload final report
         uses: actions/upload-artifact@v4
         with:
           name: validation-report-${{ github.event.inputs.image_tag }}
           path: reports/
-      
+
       - name: Post summary to PR
         run: |
           cat reports/summary.md >> $GITHUB_STEP_SUMMARY
-      
+
       - name: Check for failures
         if: contains(needs.*.result, 'failure')
         run: |
