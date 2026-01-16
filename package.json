@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "jest --config jest.config.js --runInBand",
+    "test:fast": "FAST_TESTS=true jest --config jest.config.js --runInBand",
     "test:release": "jest --config jest.config.js --runInBand --testTimeout=300000",
     "test:lifecycle": "jest tests/01-server-lifecycle.test.js --runInBand",
     "test:plugins": "jest tests/02-plugin-loading.test.js --runInBand",
