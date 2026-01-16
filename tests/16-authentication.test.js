@@ -7,6 +7,8 @@
 const { ContainerManager } = require('../lib/container-manager');
 const { LogMonitor } = require('../lib/log-monitor');
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 describe('Authentication and Security', () => {
   let manager;
   let logMonitor;

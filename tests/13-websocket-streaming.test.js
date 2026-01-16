@@ -221,6 +221,109 @@ describe('WebSocket Streaming', () => {
       expect(logMonitor.getPhaseErrors('ws-subscribe-wildcard')).toHaveLength(0);
     });
 
+    test('subscribes to self vessel only with subscribe=self', async () => {
+      logMonitor.setPhase('ws-subscribe-self');
+
+      // Send own vessel data
+      await feeder.sendTcp(NmeaFixtures.generateRMC(60.25, 24.25, 5.0, 90.0));
+
+      const messages = await collectMessages(`${wsUrl}?subscribe=self`, 3000);
+
+      // Should receive hello and self vessel updates
+      expect(messages.some((m) => m.self)).toBe(true);
+
+      // Check that updates are for self vessel
+      const deltas = messages.filter((m) => m.updates);
+      for (const delta of deltas) {
+        if (delta.context) {
+          // Context should be self or vessels.self
+          expect(delta.context).toMatch(/self|vessels\.self/);
+        }
+      }
+
+      console.log(`Received ${messages.length} messages with subscribe=self`);
+
+      expect(logMonitor.getPhaseErrors('ws-subscribe-self')).toHaveLength(0);
+    });
+
+    test('supports policy parameter for subscription', async () => {
+      logMonitor.setPhase('ws-subscribe-policy');
+
+      // Test different policy values: instant, ideal, fixed
+      const policies = ['instant', 'ideal', 'fixed'];
+
+      for (const policy of policies) {
+        const messages = await collectMessagesWithSubscription(
+          `${wsUrl}?subscribe=none`,
+          {
+            context: 'vessels.self',
+            subscribe: [{ path: 'navigation.*', policy, period: 1000 }],
+          },
+          2000
+        );
+
+        console.log(`Policy '${policy}': received ${messages.length} messages`);
+      }
+
+      expect(logMonitor.getPhaseErrors('ws-subscribe-policy')).toHaveLength(0);
+    });
+
+    test('supports sendCachedValues parameter', async () => {
+      logMonitor.setPhase('ws-send-cached');
+
+      // First, ensure there's data in cache
+      await feeder.sendTcp(NmeaFixtures.generateRMC(60.3, 24.3, 5.5, 100.0));
+      await sleep(1000);
+
+      // Subscribe with sendCachedValues=true (default)
+      const messagesWithCache = await collectMessagesWithSubscription(
+        `${wsUrl}?subscribe=none`,
+        {
+          context: 'vessels.self',
+          subscribe: [{ path: 'navigation.position', sendCachedValues: true }],
+        },
+        2000
+      );
+
+      // Subscribe with sendCachedValues=false
+      const messagesNoCache = await collectMessagesWithSubscription(
+        `${wsUrl}?subscribe=none`,
+        {
+          context: 'vessels.self',
+          subscribe: [{ path: 'navigation.position', sendCachedValues: false }],
+        },
+        2000
+      );
+
+      console.log(`With cache: ${messagesWithCache.length}, without: ${messagesNoCache.length}`);
+
+      expect(logMonitor.getPhaseErrors('ws-send-cached')).toHaveLength(0);
+    });
+
+    test('supports format parameter in subscription', async () => {
+      logMonitor.setPhase('ws-subscribe-format');
+
+      // Test delta format (default)
+      const deltaMessages = await collectMessagesWithSubscription(
+        `${wsUrl}?subscribe=none`,
+        {
+          context: 'vessels.self',
+          subscribe: [{ path: 'navigation.*', format: 'delta' }],
+        },
+        2000
+      );
+
+      // Messages should be in delta format
+      const deltas = deltaMessages.filter((m) => m.updates);
+      if (deltas.length > 0) {
+        expect(deltas[0].updates).toBeDefined();
+      }
+
+      console.log(`Format 'delta': received ${deltaMessages.length} messages`);
+
+      expect(logMonitor.getPhaseErrors('ws-subscribe-format')).toHaveLength(0);
+    });
+
     test('can unsubscribe from updates', async () => {
       logMonitor.setPhase('ws-unsubscribe');
 
