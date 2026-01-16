@@ -1,7 +1,8 @@
 /**
  * Admin UI Data Browser Tests
  *
- * Extended tests for the SignalK Data Browser functionality
+ * Extended tests for the SignalK Data Browser functionality.
+ * Skips if Playwright browsers are not installed.
  */
 
 const { ContainerManager } = require('../lib/container-manager');
@@ -11,6 +12,20 @@ const { NmeaFeeder } = require('../lib/nmea-feeder');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Check if browsers are available before running tests
+let browserAvailable = false;
+let browserCheckDone = false;
+
+beforeAll(async () => {
+  if (!browserCheckDone) {
+    browserAvailable = await AdminUiTester.isBrowserAvailable();
+    browserCheckDone = true;
+    if (!browserAvailable) {
+      console.log('Playwright browsers not installed - skipping Admin UI tests');
+    }
+  }
+});
+
 describe('Admin UI - Data Browser Extended', () => {
   let manager;
   let logMonitor;
@@ -19,6 +34,8 @@ describe('Admin UI - Data Browser Extended', () => {
   let baseUrl;
 
   beforeAll(async () => {
+    if (!browserAvailable) return;
+
     logMonitor = new LogMonitor();
     manager = new ContainerManager({
       image: process.env.SIGNALK_IMAGE || 'signalk/signalk-server:latest',
@@ -46,16 +63,25 @@ describe('Admin UI - Data Browser Extended', () => {
   }, 120000);
 
   afterAll(async () => {
-    await uiTester.close();
-    await manager.remove(true);
+    if (!browserAvailable) return;
 
-    const summary = logMonitor.getSummary();
-    console.log('\n--- Data Browser Test Log Summary ---');
-    console.log(`Total Errors: ${summary.totalErrors}`);
+    if (uiTester) await uiTester.close();
+    if (manager) await manager.remove(true);
+
+    if (logMonitor) {
+      const summary = logMonitor.getSummary();
+      console.log('\n--- Data Browser Test Log Summary ---');
+      console.log(`Total Errors: ${summary.totalErrors}`);
+    }
   });
 
   describe('Data Browser Navigation', () => {
     test('data browser displays vessel data', async () => {
+      if (!browserAvailable) {
+        console.log('Skipped: Playwright browsers not installed');
+        return;
+      }
+
       logMonitor.setPhase('ui-databrowser-vessel');
 
       const results = await uiTester.testDataBrowser();
@@ -65,6 +91,11 @@ describe('Admin UI - Data Browser Extended', () => {
     });
 
     test('can navigate to navigation data', async () => {
+      if (!browserAvailable) {
+        console.log('Skipped: Playwright browsers not installed');
+        return;
+      }
+
       logMonitor.setPhase('ui-databrowser-nav');
 
       // Check that navigation data is accessible via API
@@ -77,6 +108,11 @@ describe('Admin UI - Data Browser Extended', () => {
     });
 
     test('can access environment data', async () => {
+      if (!browserAvailable) {
+        console.log('Skipped: Playwright browsers not installed');
+        return;
+      }
+
       logMonitor.setPhase('ui-databrowser-env');
 
       const res = await fetch(`${baseUrl}/signalk/v1/api/vessels/self/environment`);
@@ -89,6 +125,11 @@ describe('Admin UI - Data Browser Extended', () => {
 
   describe('Data Browser Real-time Updates', () => {
     test('data updates when new NMEA data arrives', async () => {
+      if (!browserAvailable) {
+        console.log('Skipped: Playwright browsers not installed');
+        return;
+      }
+
       logMonitor.setPhase('ui-databrowser-realtime');
 
       // Send new position data

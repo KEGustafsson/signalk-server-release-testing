@@ -11,6 +11,8 @@ const { NmeaFeeder } = require('../lib/nmea-feeder');
 const { NmeaFixtures } = require('../lib/nmea-fixtures');
 const WebSocket = require('ws');
 
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 // These tests have longer timeouts
 jest.setTimeout(300000); // 5 minutes
 

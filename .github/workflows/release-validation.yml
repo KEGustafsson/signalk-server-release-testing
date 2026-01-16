@@ -98,12 +98,18 @@ jobs:
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
 
-      - name: Upload logs on failure
-        if: failure()
+      - name: Upload test results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: lifecycle-logs
+          name: results-lifecycle
           path: reports/
+
+      - name: Cleanup Docker
+        if: always()
+        run: |
+          rm -f signalk-image.tar
+          docker system prune -f
 
   test-plugins:
     name: Plugin Loading Tests
@@ -137,12 +143,18 @@ jobs:
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
 
-      - name: Upload logs on failure
-        if: failure()
+      - name: Upload test results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: plugin-logs
+          name: results-plugins
           path: reports/
+
+      - name: Cleanup Docker
+        if: always()
+        run: |
+          rm -f signalk-image.tar
+          docker system prune -f
 
   test-nmea:
     name: NMEA 0183 Tests (TCP + UDP)
@@ -176,12 +188,18 @@ jobs:
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
 
-      - name: Upload logs on failure
-        if: failure()
+      - name: Upload test results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nmea-logs
+          name: results-nmea
           path: reports/
+
+      - name: Cleanup Docker
+        if: always()
+        run: |
+          rm -f signalk-image.tar
+          docker system prune -f
 
   test-scenarios:
     name: Real-World Scenario Tests
@@ -215,12 +233,18 @@ jobs:
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
 
-      - name: Upload logs on failure
-        if: failure()
+      - name: Upload test results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: scenario-logs
+          name: results-scenarios
           path: reports/
+
+      - name: Cleanup Docker
+        if: always()
+        run: |
+          rm -f signalk-image.tar
+          docker system prune -f
 
   test-admin-ui:
     name: Admin UI Tests
@@ -262,6 +286,13 @@ jobs:
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
 
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-admin-ui
+          path: reports/
+
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -269,12 +300,11 @@ jobs:
           name: ui-screenshots
           path: reports/screenshots/
 
-      - name: Upload logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ui-logs
-          path: reports/
+      - name: Cleanup Docker
+        if: always()
+        run: |
+          rm -f signalk-image.tar
+          docker system prune -f
 
   test-auth:
     name: Authentication Tests
@@ -308,12 +338,18 @@ jobs:
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
 
-      - name: Upload logs on failure
-        if: failure()
+      - name: Upload test results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: auth-logs
+          name: results-auth
           path: reports/
+
+      - name: Cleanup Docker
+        if: always()
+        run: |
+          rm -f signalk-image.tar
+          docker system prune -f
 
   test-nmea-output:
     name: NMEA Output Validation Tests
@@ -347,12 +383,18 @@ jobs:
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
 
-      - name: Upload logs on failure
-        if: failure()
+      - name: Upload test results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nmea-output-logs
+          name: results-nmea-output
           path: reports/
+
+      - name: Cleanup Docker
+        if: always()
+        run: |
+          rm -f signalk-image.tar
+          docker system prune -f
 
   test-e2e-flow:
     name: End-to-End Data Flow Tests
@@ -386,12 +428,18 @@ jobs:
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
 
-      - name: Upload logs on failure
-        if: failure()
+      - name: Upload test results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-flow-logs
+          name: results-e2e-flow
           path: reports/
+
+      - name: Cleanup Docker
+        if: always()
+        run: |
+          rm -f signalk-image.tar
+          docker system prune -f
 
   test-sustained:
     name: Sustained Load Tests
@@ -426,12 +474,18 @@ jobs:
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
 
-      - name: Upload logs on failure
-        if: failure()
+      - name: Upload test results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sustained-logs
+          name: results-sustained
           path: reports/
+
+      - name: Cleanup Docker
+        if: always()
+        run: |
+          rm -f signalk-image.tar
+          docker system prune -f
 
   test-stress:
     name: Stress Tests
@@ -466,12 +520,18 @@ jobs:
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
 
-      - name: Upload logs
+      - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: stress-logs
+          name: results-stress
           path: reports/
+
+      - name: Cleanup Docker
+        if: always()
+        run: |
+          rm -f signalk-image.tar
+          docker system prune -f
 
   generate-report:
     name: Generate Validation Report
@@ -492,15 +552,19 @@ jobs:
           path: node_modules
           key: node-modules-${{ github.run_id }}
 
-      - name: Download all artifacts
+      - name: Download all test results
         uses: actions/download-artifact@v4
         with:
+          pattern: results-*
           path: artifacts/
+          merge-multiple: false
 
-      - name: Generate report
+      - name: Generate consolidated report
         run: |
-          npm run report:generate -- \
+          mkdir -p reports
+          node scripts/generate-report.js \
             --image="${{ env.SIGNALK_IMAGE }}" \
+            --artifacts="artifacts/" \
             --lifecycle="${{ needs.test-lifecycle.result }}" \
             --plugins="${{ needs.test-plugins.result }}" \
             --nmea="${{ needs.test-nmea.result }}" \
@@ -514,13 +578,44 @@ jobs:
         with:
           name: validation-report-${{ github.event.inputs.image_tag }}
           path: reports/
+          retention-days: 90
 
-      - name: Post summary to PR
+      - name: Post summary to GitHub
         run: |
-          cat reports/summary.md >> $GITHUB_STEP_SUMMARY
+          if [ -f reports/summary.md ]; then
+            cat reports/summary.md >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Check for failures
         if: contains(needs.*.result, 'failure')
         run: |
           echo "::error::One or more test categories failed"
           exit 1
+
+  cleanup:
+    name: Cleanup Artifacts
+    needs: [generate-report, test-admin-ui, test-stress, test-sustained]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete Docker image artifact
+        uses: geekyeggo/delete-artifact@v5
+        with:
+          name: docker-image
+          failOnError: false
+
+      - name: Delete intermediate results
+        uses: geekyeggo/delete-artifact@v5
+        with:
+          name: |
+            results-lifecycle
+            results-plugins
+            results-nmea
+            results-scenarios
+            results-admin-ui
+            results-auth
+            results-nmea-output
+            results-e2e-flow
+            results-sustained
+            results-stress
+          failOnError: false
