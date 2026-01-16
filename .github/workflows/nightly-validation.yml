@@ -5,6 +5,14 @@ on:
     # Run at 4 AM UTC every day
     - cron: '0 4 * * *'
   workflow_dispatch:
+    inputs:
+      test_mode:
+        description: 'Test mode (fast uses shared containers, full runs all tests)'
+        type: choice
+        options:
+          - fast
+          - full
+        default: 'fast'
 
 env:
   SIGNALK_IMAGE: signalk/signalk-server:latest
@@ -13,32 +21,42 @@ jobs:
   nightly-validation:
     name: Nightly Release Validation
     runs-on: ubuntu-latest
-    timeout-minutes: 90
-    
+    timeout-minutes: 60
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Install Playwright browsers
+        if: ${{ github.event.inputs.test_mode == 'full' || github.event_name == 'schedule' }}
         run: npx playwright install chromium
-      
+
       - name: Pull SignalK image
         run: |
           docker pull ${{ env.SIGNALK_IMAGE }}
           echo "Image details:"
           docker inspect ${{ env.SIGNALK_IMAGE }} --format='ID: {{.Id}}'
           docker inspect ${{ env.SIGNALK_IMAGE }} --format='Created: {{.Created}}'
-      
+
+      - name: Run fast validation suite
+        if: ${{ github.event.inputs.test_mode == 'fast' }}
+        id: validation-fast
+        run: npm run test:fast
+        env:
+          SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
+          CI: true
+
       - name: Run full validation suite
-        id: validation
+        if: ${{ github.event.inputs.test_mode == 'full' || github.event_name == 'schedule' }}
+        id: validation-full
         run: npm run test:release
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}

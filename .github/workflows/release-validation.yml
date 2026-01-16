@@ -144,8 +144,8 @@ jobs:
           name: plugin-logs
           path: reports/
 
-  test-nmea-tcp:
-    name: NMEA 0183 TCP Tests
+  test-nmea:
+    name: NMEA 0183 Tests (TCP + UDP)
     needs: setup
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -171,8 +171,8 @@ jobs:
       - name: Load Docker image
         run: docker load -i signalk-image.tar
 
-      - name: Run NMEA TCP tests
-        run: npm run test:nmea-tcp
+      - name: Run NMEA tests
+        run: npm run test:nmea
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
 
@@ -180,51 +180,12 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: nmea-tcp-logs
-          path: reports/
-
-  test-nmea-udp:
-    name: NMEA 0183 UDP Tests
-    needs: setup
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Restore node_modules
-        uses: actions/cache/restore@v4
-        with:
-          path: node_modules
-          key: node-modules-${{ github.run_id }}
-
-      - name: Download Docker image
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-image
-
-      - name: Load Docker image
-        run: docker load -i signalk-image.tar
-
-      - name: Run NMEA UDP tests
-        run: npm run test:nmea-udp
-        env:
-          SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
-
-      - name: Upload logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: nmea-udp-logs
+          name: nmea-logs
           path: reports/
 
   test-scenarios:
     name: Real-World Scenario Tests
-    needs: [setup, test-lifecycle, test-nmea-tcp]
+    needs: [setup, test-lifecycle, test-nmea]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -357,7 +318,7 @@ jobs:
 
   generate-report:
     name: Generate Validation Report
-    needs: [setup, test-lifecycle, test-plugins, test-nmea-tcp, test-nmea-udp, test-scenarios]
+    needs: [setup, test-lifecycle, test-plugins, test-nmea, test-scenarios]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -385,8 +346,7 @@ jobs:
             --image="${{ env.SIGNALK_IMAGE }}" \
             --lifecycle="${{ needs.test-lifecycle.result }}" \
             --plugins="${{ needs.test-plugins.result }}" \
-            --nmea-tcp="${{ needs.test-nmea-tcp.result }}" \
-            --nmea-udp="${{ needs.test-nmea-udp.result }}" \
+            --nmea="${{ needs.test-nmea.result }}" \
             --scenarios="${{ needs.test-scenarios.result }}"
 
       - name: Upload final report
