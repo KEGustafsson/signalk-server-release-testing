@@ -16,6 +16,11 @@
     "test:ui-plugins": "jest tests/09-admin-plugins.test.js --runInBand",
     "test:ui-security": "jest tests/10-admin-security.test.js --runInBand",
     "test:stress": "jest tests/11-stress-test.test.js --runInBand --testTimeout=600000",
+    "test:nmea2000": "jest tests/05-nmea2000-input.test.js --runInBand",
+    "test:rest-api": "jest tests/12-rest-api.test.js --runInBand",
+    "test:websocket": "jest tests/13-websocket-streaming.test.js --runInBand",
+    "test:delta-put": "jest tests/14-delta-put.test.js --runInBand",
+    "test:conversion": "jest tests/15-data-conversion.test.js --runInBand",
     "report:generate": "node scripts/generate-report.js",
     "fixtures:generate": "node scripts/generate-fixtures.js",
     "lint": "eslint lib/ tests/",
@@ -35,7 +40,8 @@
     "dockerode": "^4.0.2",
     "playwright": "^1.40.1",
     "ws": "^8.14.2",
-    "fs-extra": "^11.2.0"
+    "fs-extra": "^11.2.0",
+    "tar-stream": "^3.1.6"
   },
   "devDependencies": {
     "jest": "^29.7.0",
