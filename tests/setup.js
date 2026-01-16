@@ -21,22 +21,18 @@ global.testState = {
 // Pull Docker image once before all tests
 const pullImage = async (imageName) => {
   const docker = new Docker();
-  console.log(`Pulling image: ${imageName}...`);
 
   return new Promise((resolve, reject) => {
     docker.pull(imageName, (err, stream) => {
       if (err) {
         // Image might already exist locally
-        console.log(`Image pull skipped: ${err.message}`);
         return resolve();
       }
 
       docker.modem.followProgress(stream, (err, output) => {
         if (err) {
-          console.log(`Image pull warning: ${err.message}`);
           return resolve();
         }
-        console.log(`Image ready: ${imageName}`);
         resolve();
       });
     });
@@ -47,13 +43,7 @@ const pullImage = async (imageName) => {
 beforeAll(async () => {
   const image = process.env.SIGNALK_IMAGE || 'signalk/signalk-server:latest';
 
-  console.log('='.repeat(60));
-  console.log('SignalK Release Validation Suite');
-  console.log(`Image: ${image}`);
-  console.log(`Date: ${new Date().toISOString()}`);
-  console.log('='.repeat(60));
-
-  // Pull image once at the start
+  // Pull image once at the start (silently)
   await pullImage(image);
 }, 300000); // 5 minute timeout for image pull
 

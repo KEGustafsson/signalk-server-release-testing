@@ -276,6 +276,163 @@ jobs:
           name: ui-logs
           path: reports/
 
+  test-auth:
+    name: Authentication Tests
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ github.run_id }}
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i signalk-image.tar
+
+      - name: Run authentication tests
+        run: npm run test:auth
+        env:
+          SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-logs
+          path: reports/
+
+  test-nmea-output:
+    name: NMEA Output Validation Tests
+    needs: [setup, test-nmea]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ github.run_id }}
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i signalk-image.tar
+
+      - name: Run NMEA output tests
+        run: npm run test:nmea-output
+        env:
+          SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nmea-output-logs
+          path: reports/
+
+  test-e2e-flow:
+    name: End-to-End Data Flow Tests
+    needs: [setup, test-lifecycle, test-nmea]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ github.run_id }}
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i signalk-image.tar
+
+      - name: Run end-to-end flow tests
+        run: npm run test:e2e-flow
+        env:
+          SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-flow-logs
+          path: reports/
+
+  test-sustained:
+    name: Sustained Load Tests
+    needs: [setup, test-scenarios]
+    if: ${{ github.event.inputs.run_stress_tests == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ github.run_id }}
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i signalk-image.tar
+
+      - name: Run sustained load tests
+        run: npm run test:sustained
+        env:
+          SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sustained-logs
+          path: reports/
+
   test-stress:
     name: Stress Tests
     needs: [setup, test-scenarios]
@@ -318,7 +475,7 @@ jobs:
 
   generate-report:
     name: Generate Validation Report
-    needs: [setup, test-lifecycle, test-plugins, test-nmea, test-scenarios]
+    needs: [setup, test-lifecycle, test-plugins, test-nmea, test-auth, test-nmea-output, test-e2e-flow, test-scenarios]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -347,6 +504,9 @@ jobs:
             --lifecycle="${{ needs.test-lifecycle.result }}" \
             --plugins="${{ needs.test-plugins.result }}" \
             --nmea="${{ needs.test-nmea.result }}" \
+            --auth="${{ needs.test-auth.result }}" \
+            --nmea-output="${{ needs.test-nmea-output.result }}" \
+            --e2e-flow="${{ needs.test-e2e-flow.result }}" \
             --scenarios="${{ needs.test-scenarios.result }}"
 
       - name: Upload final report

@@ -57,7 +57,10 @@ jobs:
       - name: Run full validation suite
         if: ${{ github.event.inputs.test_mode == 'full' || github.event_name == 'schedule' }}
         id: validation-full
-        run: npm run test:release
+        run: |
+          npm run test:release
+          # Run sustained load tests separately due to longer timeout
+          npm run test:sustained
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
           CI: true

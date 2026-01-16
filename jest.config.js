@@ -2,12 +2,11 @@
 const baseConfig = {
   testEnvironment: 'node',
   testTimeout: 120000,
-  verbose: true,
+  verbose: false,
   forceExit: true,
-  detectOpenHandles: true,
+  detectOpenHandles: false,
   setupFilesAfterEnv: ['./tests/setup.js'],
   reporters: [
-    'default',
     [
       './lib/custom-reporter.js',
       {
