@@ -351,6 +351,276 @@ jobs:
           rm -f signalk-image.tar
           docker system prune -f
 
+  test-resources:
+    name: Resources API Tests
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ github.run_id }}
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i signalk-image.tar
+
+      - name: Run resources API tests
+        run: npm run test:resources
+        env:
+          SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-resources
+          path: reports/
+
+      - name: Cleanup Docker
+        if: always()
+        run: |
+          rm -f signalk-image.tar
+          docker system prune -f
+
+  test-course:
+    name: Course Navigation Tests
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ github.run_id }}
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i signalk-image.tar
+
+      - name: Run course navigation tests
+        run: npm run test:course
+        env:
+          SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-course
+          path: reports/
+
+      - name: Cleanup Docker
+        if: always()
+        run: |
+          rm -f signalk-image.tar
+          docker system prune -f
+
+  test-ais:
+    name: AIS Comprehensive Tests
+    needs: [setup, test-nmea]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ github.run_id }}
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i signalk-image.tar
+
+      - name: Run AIS comprehensive tests
+        run: npm run test:ais
+        env:
+          SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-ais
+          path: reports/
+
+      - name: Cleanup Docker
+        if: always()
+        run: |
+          rm -f signalk-image.tar
+          docker system prune -f
+
+  test-multi-auth:
+    name: Multi-User Auth Tests
+    needs: [setup, test-auth]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ github.run_id }}
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i signalk-image.tar
+
+      - name: Run multi-user auth tests
+        run: npm run test:multi-auth
+        env:
+          SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-multi-auth
+          path: reports/
+
+      - name: Cleanup Docker
+        if: always()
+        run: |
+          rm -f signalk-image.tar
+          docker system prune -f
+
+  test-https:
+    name: HTTPS/TLS Tests
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ github.run_id }}
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i signalk-image.tar
+
+      - name: Run HTTPS/TLS tests
+        run: npm run test:https
+        env:
+          SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-https
+          path: reports/
+
+      - name: Cleanup Docker
+        if: always()
+        run: |
+          rm -f signalk-image.tar
+          docker system prune -f
+
+  test-mdns:
+    name: mDNS Discovery Tests
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ github.run_id }}
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load -i signalk-image.tar
+
+      - name: Run mDNS discovery tests
+        run: npm run test:mdns
+        env:
+          SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-mdns
+          path: reports/
+
+      - name: Cleanup Docker
+        if: always()
+        run: |
+          rm -f signalk-image.tar
+          docker system prune -f
+
   test-nmea-output:
     name: NMEA Output Validation Tests
     needs: [setup, test-nmea]
@@ -535,7 +805,7 @@ jobs:
 
   generate-report:
     name: Generate Validation Report
-    needs: [setup, test-lifecycle, test-plugins, test-nmea, test-auth, test-nmea-output, test-e2e-flow, test-scenarios]
+    needs: [setup, test-lifecycle, test-plugins, test-nmea, test-auth, test-nmea-output, test-e2e-flow, test-scenarios, test-resources, test-course, test-ais, test-multi-auth, test-https, test-mdns]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -571,7 +841,13 @@ jobs:
             --auth="${{ needs.test-auth.result }}" \
             --nmea-output="${{ needs.test-nmea-output.result }}" \
             --e2e-flow="${{ needs.test-e2e-flow.result }}" \
-            --scenarios="${{ needs.test-scenarios.result }}"
+            --scenarios="${{ needs.test-scenarios.result }}" \
+            --resources="${{ needs.test-resources.result }}" \
+            --course="${{ needs.test-course.result }}" \
+            --ais="${{ needs.test-ais.result }}" \
+            --multi-auth="${{ needs.test-multi-auth.result }}" \
+            --https="${{ needs.test-https.result }}" \
+            --mdns="${{ needs.test-mdns.result }}"
 
       - name: Upload final report
         uses: actions/upload-artifact@v4
@@ -618,4 +894,10 @@ jobs:
             results-e2e-flow
             results-sustained
             results-stress
+            results-resources
+            results-course
+            results-ais
+            results-multi-auth
+            results-https
+            results-mdns
           failOnError: false
