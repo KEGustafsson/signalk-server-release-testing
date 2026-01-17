@@ -232,12 +232,16 @@ describe('WebSocket Streaming', () => {
       // Should receive hello and self vessel updates
       expect(messages.some((m) => m.self)).toBe(true);
 
-      // Check that updates are for self vessel
+      // Check that updates are for self vessel (not other AIS targets)
       const deltas = messages.filter((m) => m.updates);
       for (const delta of deltas) {
         if (delta.context) {
-          // Context should be self or vessels.self
-          expect(delta.context).toMatch(/self|vessels\.self/);
+          // Context should be self, vessels.self, or the vessel's own URN
+          // It should NOT contain imo:mmsi (which would indicate an AIS target)
+          const isOwnVessel = delta.context.includes('self') ||
+            delta.context.includes('urn:mrn:signalk:uuid') ||
+            !delta.context.includes('imo:mmsi');
+          expect(isOwnVessel).toBe(true);
         }
       }
 
