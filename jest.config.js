@@ -28,6 +28,6 @@ module.exports = {
   // In normal mode: run individual tests (excluding combined to avoid duplicates)
   testMatch: isFastMode
     ? ['**/tests/core-api.test.js', '**/tests/01-server-lifecycle.test.js', '**/tests/02-plugin-loading.test.js']
-    : ['**/tests/[0-9]*.test.js'],
+    : ['**/tests/[0-9]*.test.js', '**/tests/admin-ui.test.js'],
   globalTeardown: isFastMode ? './tests/globalTeardown.js' : undefined,
 };

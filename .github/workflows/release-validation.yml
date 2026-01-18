@@ -277,12 +277,11 @@ jobs:
       - name: Load Docker image
         run: docker load -i signalk-image.tar
 
-      - name: Run Admin UI tests
-        run: |
-          npm run test:ui-dashboard
-          npm run test:ui-databrowser
-          npm run test:ui-plugins
-          npm run test:ui-security
+      - name: Clean reports directory
+        run: npm run clean
+
+      - name: Run Admin UI tests (single container)
+        run: npm run test:admin-ui
         env:
           SIGNALK_IMAGE: ${{ env.SIGNALK_IMAGE }}
 

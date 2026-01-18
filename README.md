@@ -98,11 +98,11 @@ npm run test:mdns         # mDNS discovery
 npm run test:stress       # Stress tests
 npm run test:sustained    # Sustained load tests
 
-# Admin UI tests
-npm run test:ui-dashboard
-npm run test:ui-databrowser
-npm run test:ui-plugins
-npm run test:ui-security
+# Admin UI tests (single container, all pages)
+npm run test:admin-ui
+
+# Clean reports folder manually
+npm run clean
 ```
 
 ## Test Summary
@@ -173,13 +173,16 @@ npm run test:ui-security
 - Mixed protocol simultaneous input
 - Instrument burst scenarios
 
-### 7-10. Admin UI Tests
-- Dashboard loading and WebSocket data
-- Data Browser navigation
+### Admin UI (`admin-ui.test.js`)
+All admin UI tests run in a single container with pre-configured admin authentication:
+- Login as admin (pre-seeded security configuration)
+- Dashboard loading and server statistics
+- Data Browser with vessel data tree
+- Server configuration and connection management
 - Plugin management interface
-- Security settings
-- Server configuration
-- Connection management
+- Security settings and user management
+- Webapp/Appstore navigation
+- API endpoint verification
 
 ### 11. Stress Tests (`11-stress-test.test.js`)
 - Extended duration runs
@@ -358,10 +361,7 @@ signalk-release-tests/
 │   ├── 03-nmea0183.test.js
 │   ├── 05-nmea2000-input.test.js
 │   ├── 06-realworld-scenarios.test.js
-│   ├── 07-admin-dashboard.test.js
-│   ├── 08-admin-databrowser.test.js
-│   ├── 09-admin-plugins.test.js
-│   ├── 10-admin-security.test.js
+│   ├── admin-ui.test.js           # Consolidated admin UI tests
 │   ├── 11-stress-test.test.js
 │   ├── 12-rest-api.test.js
 │   ├── 13-websocket-streaming.test.js
@@ -379,6 +379,7 @@ signalk-release-tests/
 │   ├── 25-https-tls.test.js
 │   └── 26-mdns-discovery.test.js
 ├── scripts/
+│   ├── cleanup-reports.js         # Cleans reports folder before tests
 │   ├── generate-report.js
 │   └── generate-fixtures.js
 ├── reports/
@@ -390,12 +391,15 @@ signalk-release-tests/
 
 ## Reports
 
+The reports folder is automatically cleaned before each test run (via `pretest` hook).
+
 After test completion, reports are generated in `reports/`:
 
+- `report.html` - Interactive HTML report with embedded screenshots
 - `summary.md` - Human-readable summary
 - `results.json` - Machine-readable results
 - `logs/` - Container logs from each phase
-- `screenshots/` - UI test screenshots
+- `screenshots/` - UI test screenshots (also displayed in HTML report)
 
 ## Configuration
 
